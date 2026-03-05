@@ -1,7 +1,7 @@
 # TRDAP
 Transport registration data access protocol
 
-Excellent—let's build the standardization foundation. This is where your TRDAP protocol becomes something others could actually implement. I'll structure this as a proper Internet-Draft style document that you could theoretically submit to the IETF or use as a blueprint for a real standards effort.
+Thid is an Internet-Draft style document that could theoretically submit to the IETF or use as a blueprint for a real standards effort.
 
 📄 TRDAP: Transport Registration Data Access Protocol
 
