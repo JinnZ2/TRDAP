@@ -46,22 +46,21 @@ class MorseOS:
             '.': '.-.-.-', ',': '--..--', '?': '..--..', '/': '-..-.',
             '@': '.--.-.', ' ': ' '
         }
-        self.morse_to_text = {v: k for k, v in self.text_to_morse.items()}
-        
+        self.morse_to_text_map = {v: k for k, v in self.text_to_morse.items()}
+
         # Timing (standard)
         self.dot_duration = 0.2  # seconds
         self.dash_duration = self.dot_duration * 3
         self.symbol_space = self.dot_duration
         self.letter_space = self.dot_duration * 3
         self.word_space = self.dot_duration * 7
-        
-        # Detection settings
-        self.dot_max = 0.3
-        self.dash_min = 0.4
+
+        # Detection settings (no dead zone - threshold is boundary)
+        self.dot_dash_threshold = 0.35
         self.symbol_gap = 0.5
         self.letter_gap = 1.0
         self.word_gap = 2.5
-        
+
     def text_to_morse_code(self, text):
         """Convert text to Morse string"""
         text = text.upper()
@@ -72,28 +71,27 @@ class MorseOS:
             else:
                 result.append('?')
         return ' '.join(result)
-    
-    def morse_to_text(self, morse):
+
+    def decode_morse(self, morse):
         """Convert Morse to text"""
         words = morse.split('   ')
         result = []
         for word in words:
             letters = word.split(' ')
             for letter in letters:
-                if letter in self.morse_to_text:
-                    result.append(self.morse_to_text[letter])
+                if letter in self.morse_to_text_map:
+                    result.append(self.morse_to_text_map[letter])
                 else:
                     result.append('?')
             result.append(' ')
         return ''.join(result).strip()
-    
+
     def detect_signal(self, duration):
         """Convert signal duration to dot/dash"""
-        if duration < self.dot_max:
+        if duration <= self.dot_dash_threshold:
             return '.'
-        elif duration > self.dash_min:
+        else:
             return '-'
-        return None
 ```
 
 Platform-Specific Implementations
@@ -229,10 +227,10 @@ void loop() {
   } else {
     if (buttonPressed) {
       unsigned long duration = millis() - lastPress;
-      if (duration < 300) {
+      if (duration <= 350) {
         morseBuffer += ".";
         Serial.print(".");
-      } else if (duration > 400) {
+      } else {
         morseBuffer += "-";
         Serial.print("-");
       }

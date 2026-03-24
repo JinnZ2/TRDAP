@@ -1,7 +1,7 @@
 # TRDAP
 Transport registration data access protocol
 
-Thid is an Internet-Draft style document that could theoretically submit to the IETF or use as a blueprint for a real standards effort.
+This is an Internet-Draft style document that could theoretically submit to the IETF or use as a blueprint for a real standards effort.
 
 📄 TRDAP: Transport Registration Data Access Protocol
 
@@ -95,7 +95,7 @@ Used to request resource information from other hubs.
 ```json
 {
   "protocol": "TRDAP/1.0",
-  "message_id": "a7f3d9e2-1a45-4b88-9c34-k82m1n4p7q2r",
+  "message_id": "a7f3d9e2-1a45-4b88-9c34-a82b1c4d7e2f",
   "type": "QUERY",
   "from": "JFK",
   "to": "ALL",
@@ -124,8 +124,8 @@ Provides resource data in response to a query.
 ```json
 {
   "protocol": "TRDAP/1.0",
-  "message_id": "x8g3h5j2-3b67-9k12-8m45-n7p8q2r4t6v8",
-  "in_response_to": "a7f3d9e2-1a45-4b88-9c34-k82m1n4p7q2r",
+  "message_id": "a8e3b5d2-3b67-4a12-8f45-c7d8e2f4a6b8",
+  "in_response_to": "a7f3d9e2-1a45-4b88-9c34-a82b1c4d7e2f",
   "type": "RESPONSE",
   "from": "EWR",
   "to": "JFK",
@@ -212,13 +212,13 @@ Used to direct queries to hubs with better knowledge, mirroring RDAP's redirecti
 ```json
 {
   "protocol": "TRDAP/1.0",
-  "message_id": "c3d5e7f9-g1h2-3i4j-5k6l-7m8n9o0p1q2r",
+  "message_id": "c3d5e7f9-a1b2-3c4d-5e6f-7a8b9c0d1e2f",
   "type": "REDIRECT",
   "from": "EWR",
   "to": "JFK",
   "timestamp": "2025-03-05T14:32:00Z",
   "data": {
-    "original_query_id": "a7f3d9e2-1a45-4b88-9c34-k82m1n4p7q2r",
+    "original_query_id": "a7f3d9e2-1a45-4b88-9c34-a82b1c4d7e2f",
     "redirect_to": ["PHL", "BOS"],
     "reason": "better_coverage",
     "ttl_remaining": 2
@@ -233,7 +233,7 @@ Used for bulk data synchronization between trusted hubs.
 ```json
 {
   "protocol": "TRDAP/1.0",
-  "message_id": "d4e6f8g0-h1i2-3j4k-5l6m-7n8o9p0q1r2s",
+  "message_id": "d4e6f8a0-b1c2-3d4e-5f6a-7b8c9d0e1f2a",
   "type": "SYNC",
   "from": "JFK",
   "to": "EWR",
