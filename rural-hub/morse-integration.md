@@ -72,11 +72,10 @@ class MorseOS:
             '.': '.-.-.-', ',': '--..--', '?': '..--..', '/': '-..-.',
             '@': '.--.-.', ' ': ' '
         }
-        self.morse_to_text = {v: k for k, v in self.text_to_morse.items()}
-        
-        # Detection settings
-        self.dot_max = 0.3
-        self.dash_min = 0.4
+        self.morse_to_text_map = {v: k for k, v in self.text_to_morse.items()}
+
+        # Detection settings (no dead zone - single threshold)
+        self.dot_dash_threshold = 0.35
         self.symbol_gap = 0.5
         self.letter_gap = 1.0
         self.word_gap = 2.5
@@ -131,15 +130,15 @@ class MorseOS:
                 result.append('?')
         return ' '.join(result)
     
-    def morse_to_text(self, morse):
+    def decode_morse(self, morse):
         """Convert Morse code to text"""
         words = morse.split('   ')  # Word gap = 3 spaces
         result = []
         for word in words:
             letters = word.split(' ')
             for letter in letters:
-                if letter in self.morse_to_text:
-                    result.append(self.morse_to_text[letter])
+                if letter in self.morse_to_text_map:
+                    result.append(self.morse_to_text_map[letter])
                 else:
                     result.append('?')
             result.append(' ')
@@ -161,7 +160,7 @@ class MorseOS:
         """Compress common phrases to shorter codes"""
         compression = {
             'SOS': '... --- ...',
-            'NEED HELP': '.... . .-.. .--.',
+            'NEED HELP': '-. . . -..   .... . .-.. .--.',
             'FUEL': '..-. ..- . .-..',
             'MEDICAL': '-- . -.. .. -.-. .- .-..',
             'WATER': '.-- .- - . .-.',

@@ -198,8 +198,9 @@ import RPi.GPIO as GPIO
 import time
 import subprocess
 
-class AudioMorse:
-    def __init__(self, output_type='gpio'):
+class AudioMorse(MorseLightBeacon):
+    def __init__(self, output_type='gpio', led_pin=18):
+        super().__init__(led_pin)
         self.output_type = output_type
         
         if output_type == 'gpio':
@@ -285,8 +286,9 @@ Vibration motor inside the hub - can be felt when held
 Also can connect to bed frames, chairs, etc.
 """
 
-class TactileMorse:
-    def __init__(self, motor_pin=24):
+class TactileMorse(MorseLightBeacon):
+    def __init__(self, motor_pin=24, led_pin=18):
+        super().__init__(led_pin)
         GPIO.setup(motor_pin, GPIO.OUT)
         self.motor_pwm = GPIO.PWM(motor_pin, 100)
         self.motor_pwm.start(0)
@@ -335,8 +337,9 @@ Simpler than digital - can be decoded by ear
 import serial
 import time
 
-class RadioMorse:
-    def __init__(self, radio_port='/dev/ttyACM0'):
+class RadioMorse(MorseLightBeacon):
+    def __init__(self, radio_port='/dev/ttyACM0', led_pin=18):
+        super().__init__(led_pin)
         self.radio = serial.Serial(radio_port, 115200)
         
     def enable_cw_mode(self):
@@ -395,46 +398,49 @@ from threading import Timer
 
 class MorseInput:
     def __init__(self, button_pin=25, output_callback=None):
+        self.button_pin = button_pin
         GPIO.setup(button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-        GPIO.add_event_detect(button_pin, GPIO.FALLING, 
-                              callback=self.button_pressed, 
+        GPIO.add_event_detect(button_pin, GPIO.BOTH,
+                              callback=self.button_event,
                               bouncetime=50)
-        
+
         self.output_callback = output_callback
-        
-        self.press_times = []
+
         self.current_symbol = ''
         self.letter_buffer = ''
         self.word_buffer = ''
-        
-        # Timing
-        self.dot_max = 0.3  # seconds
-        self.dash_min = 0.4
+
+        # Timing (no dead zone - single threshold)
+        self.dot_dash_threshold = 0.35  # seconds
         self.symbol_gap = 0.5  # Time between symbols in same letter
         self.letter_gap = 1.0  # Time between letters
         self.word_gap = 2.5  # Time between words
-        
-        self.last_press_time = 0
+
+        self.press_start = 0
+        self.is_pressed = False
         self.symbol_timer = None
-    
-    def button_pressed(self, channel):
-        """Handle button press"""
+
+    def button_event(self, channel):
+        """Handle button press and release to measure hold duration"""
         now = time.time()
-        
-        # Calculate press duration
-        if self.last_press_time > 0:
-            duration = now - self.last_press_time
-            
-            # Determine if dot or dash
-            if duration < self.dot_max:
-                self.current_symbol += '.'
-                print(".", end='', flush=True)
-            elif duration > self.dash_min:
-                self.current_symbol += '-'
-                print("-", end='', flush=True)
-        
-        self.last_press_time = now
-        
+
+        if GPIO.input(self.button_pin) == 0:  # Button pressed (active low)
+            self.press_start = now
+            self.is_pressed = True
+        else:  # Button released
+            if self.is_pressed and self.press_start > 0:
+                duration = now - self.press_start
+
+                # Classify by hold duration (no dead zone)
+                if duration <= self.dot_dash_threshold:
+                    self.current_symbol += '.'
+                    print(".", end='', flush=True)
+                else:
+                    self.current_symbol += '-'
+                    print("-", end='', flush=True)
+
+            self.is_pressed = False
+
         # Reset symbol timer
         if self.symbol_timer:
             self.symbol_timer.cancel()
