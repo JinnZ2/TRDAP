@@ -27,7 +27,8 @@ TRDAP/
 │   ├── seed-protocol-v3.py                    # v3: Range-limited UDP mesh with jitter
 │   ├── seed-protocol-v4.py                    # v4: Multi-machine LAN multicast mesh
 │   ├── seed-agent-tcp.py                      # Seed-native agents over TCP
-│   └── seed-udp.py                            # Minimal UDP broadcast discovery
+│   ├── seed-udp.py                            # Minimal UDP broadcast discovery
+│   └── physics_guard.py                       # Vendored from Seed-physics: constraint validator
 │
 ├── stranded-bible/                            # "The Stranded Bible" / ARK device
 │   ├── ark-system-design.md                   # PCB schematics, hardware architecture
