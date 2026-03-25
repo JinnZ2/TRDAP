@@ -12,7 +12,10 @@
       "shared_paths": {
         "local": "seed-protocol/",
         "remote": "/"
-      }
+      },
+      "vendored": [
+        "seed-protocol/physics_guard.py"
+      ]
     }
   ]
 }
