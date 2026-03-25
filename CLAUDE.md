@@ -18,6 +18,17 @@ TRDAP/
 │   ├── debugging-guide.md                     # Field debugging for rural hardware
 │   └── morse-deployment-package.md            # Morse OS + assembly kits + mesh networking
 │
+├── seed-protocol/                             # Seed Protocol — decentralized identity & routing
+│   ├── seed-protocol-design.md                # Protocol design notes, packet formats, algorithms
+│   ├── seed-protocol-v1.py                    # v1: Orbital seed encoding + 13-byte packets
+│   ├── seed-protocol-v2.py                    # v2: Spatial coupling + 21-byte packets
+│   ├── seed-protocol-v2-sim.py                # v2: Multi-node simulation harness
+│   ├── seed-protocol-v2-udp-mesh.py           # v2: Real UDP mesh implementation
+│   ├── seed-protocol-v3.py                    # v3: Range-limited UDP mesh with jitter
+│   ├── seed-protocol-v4.py                    # v4: Multi-machine LAN multicast mesh
+│   ├── seed-agent-tcp.py                      # Seed-native agents over TCP
+│   └── seed-udp.py                            # Minimal UDP broadcast discovery
+│
 ├── stranded-bible/                            # "The Stranded Bible" / ARK device
 │   ├── ark-system-design.md                   # PCB schematics, hardware architecture
 │   ├── scrap-build-guide.md                   # Building components from salvaged materials
@@ -95,7 +106,7 @@ Detection thresholds (for classifying input signals):
 ## Development Workflow
 
 1. All documentation is Markdown
-2. Code examples are embedded in Markdown files (no standalone source files yet)
+2. Code examples are embedded in Markdown files; standalone Python in `seed-protocol/`
 3. License: CC0 1.0 Universal (public domain)
 4. Target audiences: rural communities, emergency responders, makers, IETF reviewers
 

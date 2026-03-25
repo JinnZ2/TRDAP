@@ -1,0 +1,18 @@
+{
+  "name": "trdap",
+  "description": "Transport Registration Data Access Protocol — emergency mesh networking",
+  "repository": "JinnZ2/TRDAP",
+  "links": [
+    {
+      "target": "JinnZ2/Seed-physics",
+      "alias": "seed-physics",
+      "direction": "bidirectional",
+      "relationship": "protocol-implementation",
+      "description": "Seed Protocol originated in Seed-physics; TRDAP carries reference implementations (v1–v4) and mesh transport layers",
+      "shared_paths": {
+        "local": "seed-protocol/",
+        "remote": "/"
+      }
+    }
+  ]
+}
