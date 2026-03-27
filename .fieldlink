@@ -16,6 +16,20 @@
       "vendored": [
         "seed-protocol/physics_guard.py"
       ]
+    },
+    {
+      "target": "JinnZ2/Resilience",
+      "alias": "resilience",
+      "direction": "bidirectional",
+      "relationship": "companion",
+      "description": "Systems analysis (food, energy, corridor modeling, communication infrastructure) that informs TRDAP coordination priorities; shared CB/LoRa/HAM mesh design for Superior-to-Tomah corridor"
+    },
+    {
+      "target": "JinnZ2/BE2-communication",
+      "alias": "be2",
+      "direction": "bidirectional",
+      "relationship": "transport-layer",
+      "description": "Agent transport framework with LoRa, HAM, CB, BLE, WiFi Direct backends and emergency mesh protocol; TRDAP hub queries can route over BE2 transports for low-energy emergency communications"
     }
   ]
 }
