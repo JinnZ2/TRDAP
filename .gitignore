@@ -1,0 +1,15 @@
+# AI pipeline local state
+.linked-repos/
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Training artifacts (tracked via .gitkeep, contents local-only)
+ai-pipeline/training/models/*.json
+ai-pipeline/training/models/*.sha256
+ai-pipeline/training/checkpoints/*.json
+ai-pipeline/training/logs/*.json
+!ai-pipeline/training/**/.gitkeep

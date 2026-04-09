@@ -1,0 +1,76 @@
+{
+  "protocol_id": "EM-003-MASS-CASUALTY",
+  "version": 1,
+  "name": "Mass Casualty Incident Response",
+  "urgency_level": "critical",
+  "description": "Activated for events with casualties exceeding local medical capacity. Coordinates triage, transport, and mutual aid across multiple hubs. Time-critical — every step has hard deadlines.",
+  "trigger_conditions": {
+    "casualty_count_exceeds_local_capacity": true,
+    "urgency_threshold": "critical"
+  },
+  "fallback_protocol_id": "EM-001-RESOURCE-EXHAUSTION",
+  "steps": [
+    {
+      "step_id": 1,
+      "type": "assess",
+      "action": "Classify incident scope: estimate casualty count, hazard type, area affected",
+      "model": "urgency_classifier",
+      "timeout_seconds": 15,
+      "note": "Do NOT wait for perfect data — estimate and update"
+    },
+    {
+      "step_id": 2,
+      "type": "override",
+      "action": "Bypass normal resource allocation — all medical resources redirected to incident",
+      "required_authority": "section_chief",
+      "justification": "Mass casualty event requires immediate resource commandeering per ICS protocol"
+    },
+    {
+      "step_id": 3,
+      "type": "communicate",
+      "action": "ANNOUNCE mass casualty event to ALL hubs — broadcast on every available channel",
+      "trdap_message_type": "ANNOUNCE",
+      "urgency": "critical",
+      "channels": ["operations", "logistics", "planning", "morse_beacon"]
+    },
+    {
+      "step_id": 4,
+      "type": "allocate",
+      "action": "Query all hubs for medical_kits, medical_personnel, transport capacity. Rank by proximity and ETA.",
+      "model": "resource_predictor",
+      "trdap_message_type": "QUERY",
+      "resource_types": ["medical_kits", "medical_personnel", "transport"]
+    },
+    {
+      "step_id": 5,
+      "type": "stage",
+      "action": "Establish casualty collection point at nearest viable hub. Stage transport at 2 closest hubs.",
+      "model": "route_optimizer",
+      "staging_area": "incident_perimeter"
+    },
+    {
+      "step_id": 6,
+      "type": "escalate",
+      "action": "If casualties exceed regional capacity, escalate to mutual aid / ICS Type 1 incident",
+      "target_authority": "incident_commander",
+      "condition": "estimated_casualties > regional_medical_capacity"
+    },
+    {
+      "step_id": 7,
+      "type": "execute",
+      "action": "Dispatch medical transport along optimized routes. Track all movements.",
+      "required_authority": "branch_director"
+    },
+    {
+      "step_id": 8,
+      "type": "verify",
+      "action": "Confirm patient counts at each receiving facility. Reconcile with initial estimate.",
+      "trdap_message_type": "SYNC"
+    },
+    {
+      "step_id": 9,
+      "type": "document",
+      "action": "Full ICS-214 activity log: timeline, resources deployed, decisions, authority chain, outcomes"
+    }
+  ]
+}

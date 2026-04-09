@@ -1,0 +1,61 @@
+{
+  "protocol_id": "EM-001-RESOURCE-EXHAUSTION",
+  "version": 1,
+  "name": "Resource Exhaustion Response",
+  "urgency_level": "critical",
+  "description": "Activated when a hub reports depleted status on critical resources (fuel, medical, water). Triggers mutual aid request and re-routing.",
+  "trigger_conditions": {
+    "resource_status": "depleted",
+    "resource_types": ["fuel", "medical", "water"],
+    "urgency_threshold": "high"
+  },
+  "fallback_protocol_id": "EM-010-DEGRADED-OPS",
+  "steps": [
+    {
+      "step_id": 1,
+      "type": "assess",
+      "action": "Query all hubs within 2-hop radius for resource availability",
+      "trdap_message_type": "QUERY",
+      "timeout_seconds": 30
+    },
+    {
+      "step_id": 2,
+      "type": "communicate",
+      "action": "Broadcast ANNOUNCE with depleted resource type and estimated need",
+      "trdap_message_type": "ANNOUNCE",
+      "urgency": "critical",
+      "channels": ["operations", "logistics"]
+    },
+    {
+      "step_id": 3,
+      "type": "allocate",
+      "action": "Identify nearest hub with 'available' or 'limited' status for needed resource",
+      "model": "resource_predictor",
+      "decision_criteria": "minimize transport distance while ensuring supply meets 48h demand"
+    },
+    {
+      "step_id": 4,
+      "type": "stage",
+      "action": "Pre-position transport agents along optimal route",
+      "model": "route_optimizer",
+      "staging_area": "nearest_junction"
+    },
+    {
+      "step_id": 5,
+      "type": "execute",
+      "action": "Dispatch resource transfer via best available transport",
+      "required_authority": "division_supervisor"
+    },
+    {
+      "step_id": 6,
+      "type": "verify",
+      "action": "Confirm resource receipt and update hub status to 'limited' or 'available'",
+      "trdap_message_type": "SYNC"
+    },
+    {
+      "step_id": 7,
+      "type": "document",
+      "action": "Log resource transfer: quantities, origin, destination, transit time, authority chain"
+    }
+  ]
+}

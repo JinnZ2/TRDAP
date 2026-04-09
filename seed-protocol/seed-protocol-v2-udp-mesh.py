@@ -1,13 +1,20 @@
 # =============================================================================
 # SEED PROTOCOL v2 — REAL UDP MESH
 # =============================================================================
+#
+# Uses v_raw packet format (raw floats over UDP) for LAN mesh.
+# Falls back gracefully: if bandwidth drops, switch to v2/v1 encoded packets.
+#
+# All core functions from seed_core.py (canonical source).
 
 import socket
 import threading
 import numpy as np
-import struct
 import random
 import time
+
+from seed_core import seed_distance, combine_seeds
+from seed_packet import pack_raw as pack_packet, unpack_raw as unpack_packet
 
 # -----------------------------------------------------------------------------
 # CONFIG
@@ -18,20 +25,6 @@ COMM_RANGE = 200.0
 SEED_DRIFT = 0.02
 POS_DRIFT = 5.0
 SIM_STEP = 1.0             # seconds per step
-
-# -----------------------------------------------------------------------------
-# PACKET UTILITIES (simple float arrays)
-# -----------------------------------------------------------------------------
-def pack_packet(seed, pos, energy=100, epoch=0):
-    # seed: 6 floats, pos: 3 floats, energy, epoch: int
-    return struct.pack('6f3f2i', *(list(seed)+list(pos)+[energy, epoch]))
-
-def unpack_packet(pkt):
-    data = struct.unpack('6f3f2i', pkt)
-    seed = np.array(data[0:6])
-    pos  = np.array(data[6:9])
-    energy, epoch = data[9:11]
-    return {"seed": seed, "position": pos, "energy": energy, "epoch": epoch}
 
 # -----------------------------------------------------------------------------
 # NODE DEFINITION
@@ -97,15 +90,6 @@ class Node:
 
             self.inbox = []
             self.epoch += 1
-
-# -----------------------------------------------------------------------------
-# COMBINE SEEDS (same as simulation)
-# -----------------------------------------------------------------------------
-def seed_distance(a, b):
-    return np.linalg.norm(a - b)
-
-def combine_seeds(seeds):
-    return np.mean(seeds, axis=0)
 
 # -----------------------------------------------------------------------------
 # INIT NODES

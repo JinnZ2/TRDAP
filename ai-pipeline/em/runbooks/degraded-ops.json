@@ -1,0 +1,53 @@
+{
+  "protocol_id": "EM-010-DEGRADED-OPS",
+  "version": 1,
+  "name": "Degraded Operations Fallback",
+  "urgency_level": "medium",
+  "description": "Universal fallback protocol when other protocols fail or prerequisites cannot be met. Agents operate on minimal assumptions: limited comms, limited authority, limited resources. Prioritizes life safety above all else.",
+  "trigger_conditions": {
+    "primary_protocol_failed": true,
+    "note": "This is the protocol of last resort"
+  },
+  "fallback_protocol_id": "EM-010-DEGRADED-OPS",
+  "steps": [
+    {
+      "step_id": 1,
+      "type": "assess",
+      "action": "Determine what IS working: list available comms, agents, resources, authority tokens",
+      "timeout_seconds": 10
+    },
+    {
+      "step_id": 2,
+      "type": "communicate",
+      "action": "Broadcast SOS beacon on ALL available channels with hub status summary",
+      "trdap_message_type": "ANNOUNCE",
+      "urgency": "critical",
+      "note": "Even Morse beacon — anything that gets signal out"
+    },
+    {
+      "step_id": 3,
+      "type": "execute",
+      "action": "Preserve life: if agents have local authority, prioritize immediate life-safety actions over coordination",
+      "autonomous_mode": true,
+      "note": "ICS principle: life safety > incident stabilization > property conservation"
+    },
+    {
+      "step_id": 4,
+      "type": "execute",
+      "action": "Cache all local state and decisions. When connectivity restores, SYNC everything.",
+      "cache_duration_seconds": 86400
+    },
+    {
+      "step_id": 5,
+      "type": "escalate",
+      "action": "Continuously attempt to reach higher authority. Retry every 60 seconds.",
+      "target_authority": "any_available",
+      "retry_interval_seconds": 60
+    },
+    {
+      "step_id": 6,
+      "type": "document",
+      "action": "Log everything: timestamps, decisions, justifications. This becomes the after-action record."
+    }
+  ]
+}

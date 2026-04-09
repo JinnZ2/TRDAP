@@ -1,13 +1,20 @@
 # =============================================================================
 # SEED PROTOCOL v3 — RANGE-LIMITED UDP MESH WITH JITTER
 # =============================================================================
+#
+# Extends v2-udp-mesh with packet loss simulation and jitter.
+# Uses v_raw packet format. Core functions from seed_core.py.
+#
+# Fallback: if nodes can't decode raw packets, they should try v2/v1.
 
 import socket
 import threading
 import numpy as np
-import struct
 import random
 import time
+
+from seed_core import combine_seeds
+from seed_packet import pack_raw as pack_packet, unpack_raw as unpack_packet
 
 # -----------------------------------------------------------------------------
 # CONFIG
@@ -21,25 +28,6 @@ SIM_STEP = 1.0         # seconds per simulation step
 
 PACKET_LOSS = 0.1      # 10% packet drop
 JITTER = 0.05          # seconds of random delay
-
-# -----------------------------------------------------------------------------
-# PACKET UTILITIES
-# -----------------------------------------------------------------------------
-def pack_packet(seed, pos, energy=100, epoch=0):
-    return struct.pack('6f3f2i', *(list(seed)+list(pos)+[energy, epoch]))
-
-def unpack_packet(pkt):
-    data = struct.unpack('6f3f2i', pkt)
-    seed = np.array(data[0:6])
-    pos  = np.array(data[6:9])
-    energy, epoch = data[9:11]
-    return {"seed": seed, "position": pos, "energy": energy, "epoch": epoch}
-
-# -----------------------------------------------------------------------------
-# SEED COMBINE
-# -----------------------------------------------------------------------------
-def combine_seeds(seeds):
-    return np.mean(seeds, axis=0)
 
 # -----------------------------------------------------------------------------
 # NODE DEFINITION

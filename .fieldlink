@@ -30,6 +30,28 @@
       "direction": "bidirectional",
       "relationship": "transport-layer",
       "description": "Agent transport framework with LoRa, HAM, CB, BLE, WiFi Direct backends and emergency mesh protocol; TRDAP hub queries can route over BE2 transports for low-energy emergency communications"
+    },
+    {
+      "target": "JinnZ2/Infrastructure-assistance",
+      "alias": "infrastructure",
+      "direction": "inbound",
+      "relationship": "data-source",
+      "description": "Infrastructure modeling and analysis that feeds training data into the TRDAP AI pipeline; road, bridge, utility, and transit network models inform resource prediction and route optimization",
+      "shared_paths": {
+        "local": "ai-pipeline/training/data/",
+        "remote": "/"
+      }
+    },
+    {
+      "target": "JinnZ2/Nexus-emergency-management",
+      "alias": "nexus",
+      "direction": "bidirectional",
+      "relationship": "integration",
+      "description": "Emergency management coordination platform; consumes TRDAP AI pipeline inference results for real-time resource allocation and urgency classification during disaster response",
+      "shared_paths": {
+        "local": "ai-pipeline/",
+        "remote": "/"
+      }
     }
   ]
 }
