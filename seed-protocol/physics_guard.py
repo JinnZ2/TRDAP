@@ -24,7 +24,7 @@ Author: Jami (Kavik Ulu) - MIT License
 """
 
 import numpy as np
-from seed_expansion import expand_seed
+from seed_core import expand as expand_seed
 
 # =============================================================================
 # INDIVIDUAL CONSTRAINT CHECKS
@@ -127,7 +127,7 @@ def validate_shells(shells, rho=1.5, epsilon=0.6, tol=1e-10):
 # =============================================================================
 
 def verify_deterministic(seed, claimed_shells, E0=1.0, r0=1.0, rho=1.5,
-                         epsilon=0.6, sigma_scale=0.5, tol=1e-10):
+                         epsilon=0.6, tol=1e-10):
     """
     Re-expand from seed and verify claimed shells match exactly.
 
@@ -137,7 +137,7 @@ def verify_deterministic(seed, claimed_shells, E0=1.0, r0=1.0, rho=1.5,
     """
     steps = len(claimed_shells) - 1
     reference = expand_seed(seed, E0=E0, r0=r0, steps=steps,
-                            rho=rho, epsilon=epsilon, sigma_scale=sigma_scale)
+                            rho=rho, epsilon=epsilon)
 
     max_dev = 0.0
     deviations = []
@@ -158,8 +158,7 @@ def verify_deterministic(seed, claimed_shells, E0=1.0, r0=1.0, rho=1.5,
 # COMBINED GUARD
 # =============================================================================
 
-def guard(seed, shells, E0=1.0, r0=1.0, rho=1.5, epsilon=0.6,
-          sigma_scale=0.5, tol=1e-10):
+def guard(seed, shells, E0=1.0, r0=1.0, rho=1.5, epsilon=0.6, tol=1e-10):
     """
     Full physics guard: validate constraints + verify deterministic expansion.
 
@@ -170,7 +169,7 @@ def guard(seed, shells, E0=1.0, r0=1.0, rho=1.5, epsilon=0.6,
     validation = validate_shells(shells, rho=rho, epsilon=epsilon, tol=tol)
     deterministic = verify_deterministic(
         seed, shells, E0=E0, r0=r0, rho=rho,
-        epsilon=epsilon, sigma_scale=sigma_scale, tol=tol
+        epsilon=epsilon, tol=tol
     )
 
     valid = validation['valid'] and deterministic['match']

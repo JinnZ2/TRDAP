@@ -14,15 +14,20 @@ Behavior:
 import time
 import numpy as np
 
-from core import Agent, Message
-from transports import TCPTransport
+# NOTE: core.Agent, core.Message, and transports.TCPTransport are external
+# dependencies from the BE2-communication framework (see .fieldlink).
+# They are not vendored into this repo.
+try:
+    from core import Agent, Message
+    from transports import TCPTransport
+except ImportError:
+    raise ImportError(
+        "seed-agent-tcp.py requires the BE2-communication framework. "
+        "See .fieldlink for the JinnZ2/BE2-communication repository."
+    )
 
-from seed_protocol_v1 import (
-    pack_seed_packet,
-    unpack_seed_packet,
-    expand,
-    same_entity
-)
+from seed_core import expand, same_entity
+from seed_packet import pack_v1 as pack_seed_packet, unpack_v1 as unpack_seed_packet
 
 
 # =============================================================================

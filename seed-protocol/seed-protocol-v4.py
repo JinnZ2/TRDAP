@@ -1,6 +1,11 @@
 # =============================================================================
 # SEED PROTOCOL v4 — MULTI-MACHINE LAN UDP MESH
 # =============================================================================
+#
+# Extends v3 with multicast for multi-machine LAN operation.
+# Uses v_raw packet format with node_id. Core functions from seed_core.py.
+#
+# Fallback chain: v4 (multicast/raw) → v3 (udp/raw) → v2 (encoded) → v1 (minimal)
 
 import socket
 import struct
@@ -8,6 +13,9 @@ import threading
 import numpy as np
 import random
 import time
+
+from seed_core import combine_seeds
+from seed_packet import pack_raw, unpack_raw
 
 # -----------------------------------------------------------------------------
 # CONFIG
@@ -23,22 +31,21 @@ SIM_STEP = 1.0             # seconds per simulation step
 PACKET_LOSS = 0.05         # 5% packet drop
 JITTER = 0.05              # seconds of random delay
 
-# -----------------------------------------------------------------------------
-# PACKET UTILITIES
-# -----------------------------------------------------------------------------
+
+# Thin wrappers to maintain v4's (node_id, seed, pos) calling convention
 def pack_packet(node_id, seed, pos, energy=100, epoch=0):
-    return struct.pack('i6f3f2i', node_id, *(list(seed)+list(pos)+[energy, epoch]))
+    return pack_raw(seed, pos, energy, epoch, node_id=node_id)
 
 def unpack_packet(pkt):
-    data = struct.unpack('i6f3f2i', pkt)
-    node_id = data[0]
-    seed = np.array(data[1:7])
-    pos = np.array(data[7:10])
-    energy, epoch = data[10:12]
-    return {"id": node_id, "seed": seed, "position": pos, "energy": energy, "epoch": epoch}
-
-def combine_seeds(seeds):
-    return np.mean(seeds, axis=0)
+    data = unpack_raw(pkt)
+    # Map to v4's expected key names
+    return {
+        "id": data.get("node_id", 0),
+        "seed": data["seed"],
+        "position": data["position"],
+        "energy": data["energy_hint"],
+        "epoch": data["epoch"],
+    }
 
 # -----------------------------------------------------------------------------
 # NODE DEFINITION

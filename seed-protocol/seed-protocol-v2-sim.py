@@ -5,8 +5,9 @@
 import numpy as np
 import random
 
-# ---- imports from seed-protocol-v2.py ----
-from seed_protocol_v2 import pack_packet, unpack_packet, seed_distance, combine_seeds
+# ---- imports from canonical core ----
+from seed_core import seed_distance, combine_seeds
+from seed_packet import pack_v2 as pack_packet, unpack_v2 as unpack_packet
 
 # -----------------------------------------------------------------------------
 # CONFIG

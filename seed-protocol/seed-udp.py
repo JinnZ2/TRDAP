@@ -12,11 +12,8 @@ import sys
 import time
 import numpy as np
 
-from seed_protocol_v1 import (
-    pack_seed_packet,
-    unpack_seed_packet,
-    expand
-)
+from seed_core import expand
+from seed_packet import pack_v1 as pack_seed_packet, unpack_v1 as unpack_seed_packet
 
 PORT = 9400
 BROADCAST_IP = "255.255.255.255"
