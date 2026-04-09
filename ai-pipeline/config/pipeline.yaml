@@ -1,0 +1,70 @@
+# TRDAP AI Pipeline Configuration
+# All paths relative to repo root
+
+pipeline:
+  name: trdap-ai
+  version: "1.0.0"
+
+paths:
+  data_dir: ai-pipeline/training/data
+  model_dir: ai-pipeline/training/models
+  checkpoint_dir: ai-pipeline/training/checkpoints
+  log_dir: ai-pipeline/training/logs
+
+# Training hyperparameters
+training:
+  batch_size: 32
+  learning_rate: 0.001
+  epochs: 50
+  early_stopping_patience: 5
+  validation_split: 0.2
+  seed: 42
+
+# Model configurations
+models:
+  resource_predictor:
+    type: feedforward
+    input_dim: 12    # 6D seed + resource_type one-hot (6 types)
+    hidden_dims: [64, 32]
+    output_dim: 6    # predicted resource levels
+    activation: relu
+    dropout: 0.2
+
+  urgency_classifier:
+    type: feedforward
+    input_dim: 8     # message features
+    hidden_dims: [32, 16]
+    output_dim: 4    # critical, high, medium, low
+    activation: relu
+    dropout: 0.3
+
+  route_optimizer:
+    type: feedforward
+    input_dim: 15    # seed(6) + position(3) + neighbor_seeds(6)
+    hidden_dims: [64, 32]
+    output_dim: 6    # next-hop seed weights
+    activation: relu
+    dropout: 0.1
+
+# Security constraints
+security:
+  max_input_size_bytes: 10240       # 10 KB max per input
+  max_batch_size: 256
+  allowed_data_extensions:
+    - .json
+    - .csv
+    - .safetensors
+  model_checksum_verify: true
+  sandbox_inference: true
+  max_inference_time_seconds: 30
+
+# Data validation
+validation:
+  trdap_message_fields:
+    - message_id
+    - hub_id
+    - message_type
+    - resource_type
+    - urgency
+  seed_dimensions: 6
+  max_message_size: 512             # TRDAP protocol limit
