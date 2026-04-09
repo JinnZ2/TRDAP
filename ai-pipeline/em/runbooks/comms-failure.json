@@ -1,0 +1,66 @@
+{
+  "protocol_id": "EM-002-COMMS-FAILURE",
+  "version": 1,
+  "name": "Communications Failure Response",
+  "urgency_level": "high",
+  "description": "Activated when primary communication channels (TCP/WiFi) fail. Degrades through mesh, LoRa, and Morse fallbacks while maintaining coordination.",
+  "trigger_conditions": {
+    "comm_mode_lost": ["tcp_direct", "udp_multicast"],
+    "remaining_modes": ["trdap_mesh", "morse_beacon"]
+  },
+  "fallback_protocol_id": "EM-010-DEGRADED-OPS",
+  "steps": [
+    {
+      "step_id": 1,
+      "type": "assess",
+      "action": "Detect which communication modes are still operational",
+      "timeout_seconds": 10
+    },
+    {
+      "step_id": 2,
+      "type": "communicate",
+      "action": "Switch message bus to best available degraded mode (LoRa > Morse)",
+      "channels": ["operations"],
+      "note": "All messages must fit 512-byte TRDAP limit on mesh mode"
+    },
+    {
+      "step_id": 3,
+      "type": "override",
+      "action": "Bypass normal message routing — switch to flood/broadcast mode for critical messages",
+      "required_authority": "branch_director",
+      "justification": "Communication degradation requires broader message propagation to ensure delivery"
+    },
+    {
+      "step_id": 4,
+      "type": "communicate",
+      "action": "Broadcast PING to all known hubs to rebuild peer table",
+      "trdap_message_type": "PING",
+      "urgency": "high"
+    },
+    {
+      "step_id": 5,
+      "type": "stage",
+      "action": "Activate Morse beacons on all hubs with optical/audio capability",
+      "morse_pattern": "TRDAP COMMS RESTORE",
+      "channels": ["morse_beacon"]
+    },
+    {
+      "step_id": 6,
+      "type": "execute",
+      "action": "Agents operate on last-known protocols until comms restored. Cache decisions locally.",
+      "autonomous_mode": true,
+      "cache_duration_seconds": 3600
+    },
+    {
+      "step_id": 7,
+      "type": "verify",
+      "action": "When comms restore, SYNC cached state with all reachable peers",
+      "trdap_message_type": "SYNC"
+    },
+    {
+      "step_id": 8,
+      "type": "document",
+      "action": "Log outage duration, degraded mode operations, and any autonomous decisions made"
+    }
+  ]
+}

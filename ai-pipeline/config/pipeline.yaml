@@ -58,6 +58,25 @@ security:
   sandbox_inference: true
   max_inference_time_seconds: 30
 
+# Emergency management
+em:
+  runbook_dir: ai-pipeline/em/runbooks
+  authority_token_duration_seconds: 3600    # 1 hour default
+  escalation_retry_seconds: 60
+  agent_heartbeat_timeout_seconds: 60
+  comm_degradation_order:
+    - tcp_direct
+    - udp_multicast
+    - trdap_mesh
+    - morse_beacon
+  ics_incident_types:                       # TRDAP urgency -> ICS type
+    critical: 1
+    high: 2
+    medium: 3
+    low: 5
+  autonomous_mode_cache_seconds: 3600       # how long agents cache decisions offline
+  audit_log_dir: ai-pipeline/training/logs
+
 # Data validation
 validation:
   trdap_message_fields:
