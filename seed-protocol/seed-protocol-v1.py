@@ -9,7 +9,7 @@ Fallback chain: v2 → [v1] → v_raw
 All core functions (encoding, expansion, distance) are imported from
 seed_core.py — the single source of truth.
 
-Author: Jami + synthesis
+Author: JinnZ2 + synthesis
 License: MIT
 """
 
