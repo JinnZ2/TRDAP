@@ -135,7 +135,7 @@ Target:
 - Stateless reconstruction
 - Deterministic identity
 
-Author: Jami + synthesis
+Author: JinnZ2 + synthesis
 License: MIT
 """
 
