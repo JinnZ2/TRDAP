@@ -1,0 +1,266 @@
+--- v2_delivered.py	2026-10-02 16:52:14.791476550 +0000
++++ trdap_signal_node.py	2026-10-02 16:53:44.530707117 +0000
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-import argparse, base64, hashlib, hmac, json, math, os, re, secrets, shutil, socket, subprocess, sys, time, uuid
++import argparse, base64, calendar, hashlib, hmac, json, math, os, re, secrets, shutil, socket, subprocess, sys, time, uuid
+ 
+ PROTO = "TRDAP/1.0"
+ MAX_BYTES = 512
+@@ -21,8 +21,9 @@
+ }
+ DERIVED = {
+     "batt_rate":    ("%/h",    1),
+-    "p_tend_3h":    ("hPa/3h", 1),
++    "p_tend_3h":    ("hPa/3h", 1),   # weather-front indicator; flagged at |P_TEND_FLAG|
+ }
++P_TEND_FLAG = 3.0   # hPa per 3 h. conventional "rapidly rising/falling" cut; stipulated, not fitted
+ 
+ class Reading:
+     __slots__ = ("ch", "value", "status", "t")
+@@ -151,14 +152,16 @@
+     def __init__(self):
+         self.base = {ch: Baseline(spec[1]) for ch, spec in CHANNELS.items()}
+         self.last_status = {}
++        self.last_live = {}       # ch -> True iff a value arrived last cycle
+         self.batt = Slope(3 * 3600)
+         self.press = Slope(3 * 3600)
+ 
+     def ingest(self, readings):
+         rows = {}
+         for r in readings:
+-            prev = self.last_status.get(r.ch)
+-            if r.status == READ and r.value is not None:
++            prev = self.last_live.get(r.ch, False)
++            live = r.status == READ and r.value is not None
++            if live:
+                 flag, z = self.base[r.ch].step(float(r.value))
+                 rows[r.ch] = {"v": round(float(r.value), 2), "st": READ, "flag": flag, "z": round(z, 2)}
+                 if r.ch == "batt_pct":
+@@ -166,12 +169,16 @@
+                 if r.ch == "pressure":
+                     self.press.add(r.t, float(r.value))
+             else:
+-                flag = "DROPOUT" if prev == READ else None
+-                rows[r.ch] = {"v": None, "st": r.status, "flag": flag, "z": None}
++                flag = "DROPOUT" if prev else None
++                # a READ carrying no value is a probe defect; name it rather than file it as read
++                rows[r.ch] = {"v": None, "st": r.status if r.status != READ else PARSE_FAIL, "flag": flag, "z": None}
+             self.last_status[r.ch] = r.status
++            self.last_live[r.ch] = live
+         br, pr = self.batt.per_hour(), self.press.per_hour()
+         rows["batt_rate"] = {"v": None if br is None else round(br, 2), "st": READ if br is not None else "SPAN_SHORT"}
+-        rows["p_tend_3h"] = {"v": None if pr is None else round(pr * 3, 2), "st": READ if pr is not None else "SPAN_SHORT"}
++        pt = None if pr is None else pr * 3
++        pflag = None if pt is None else ("FALLING_FAST" if pt <= -P_TEND_FLAG else "RISING_FAST" if pt >= P_TEND_FLAG else "ok")
++        rows["p_tend_3h"] = {"v": None if pt is None else round(pt, 2), "st": READ if pt is not None else "SPAN_SHORT", "flag": pflag}
+         return rows
+ 
+ def _prio(ch):
+@@ -196,8 +203,10 @@
+     def size():
+         return len(json.dumps(msg, separators=(",", ":")).encode())
+ 
+-    order = sorted(unread, key=_prio, reverse=True)
+-    order += sorted([c for c in sig if not isinstance(sig[c], list)], key=_prio, reverse=True)
++    # drop order: flagless signals by priority, then unread names, then flagged.
++    # the absence record outranks an unflagged level because the RULE is that it is carried.
++    order = sorted([c for c in sig if not isinstance(sig[c], list)], key=_prio, reverse=True)
++    order += sorted(unread, key=_prio, reverse=True)
+     order += sorted([c for c in sig if isinstance(sig[c], list)], key=_prio, reverse=True)
+     for ch in order:
+         if size() + reserve <= MAX_BYTES:
+@@ -222,9 +231,11 @@
+ 
+ TRAILER_RE = re.compile(rb',"x_kid":"([0-9a-f]{8})","x_mac":"([A-Za-z0-9_-]{22})"\}$')
+ TRAILER_LEN = len(b',"x_kid":"00000000","x_mac":"' + b"A" * 22 + b'"}')
++TRAILER_ADD = TRAILER_LEN - 1   # the trailer replaces the body's closing brace
+ 
+-VERIFIED, UNSIGNED, UNKNOWN_KEY, BAD_MAC, BAD_JSON, STALE, FUTURE, REPLAY = (
+-    "VERIFIED", "UNSIGNED", "UNKNOWN_KEY", "BAD_MAC", "BAD_JSON", "STALE", "FUTURE", "REPLAY")
++VERIFIED, UNSIGNED, UNKNOWN_KEY, BAD_MAC, BAD_JSON, STALE, FUTURE, REPLAY, NO_TIMESTAMP, BAD_TRAILER = (
++    "VERIFIED", "UNSIGNED", "UNKNOWN_KEY", "BAD_MAC", "BAD_JSON", "STALE", "FUTURE", "REPLAY",
++    "NO_TIMESTAMP", "BAD_TRAILER")
+ 
+ def kid_of(key):
+     return hashlib.sha256(key).hexdigest()[:8]
+@@ -254,7 +265,8 @@
+ 
+ def _parse_ts(s):
+     try:
+-        return time.mktime(time.strptime(s, "%Y-%m-%dT%H:%M:%SZ")) - time.timezone
++        # timegm, not mktime: the stamp is UTC and mktime reads local time, off by 3600 s under DST
++        return calendar.timegm(time.strptime(s, "%Y-%m-%dT%H:%M:%SZ"))
+     except (TypeError, ValueError):
+         return None
+ 
+@@ -268,6 +280,8 @@
+         now = time.time() if now is None else now
+         m = TRAILER_RE.search(wire)
+         if not m:
++            if b'"x_kid":' in wire or b'"x_mac":' in wire:
++                return BAD_TRAILER, None   # signed and damaged in transit, not an unsigned peer
+             try:
+                 return UNSIGNED, json.loads(wire)
+             except ValueError:
+@@ -284,7 +298,9 @@
+         except ValueError:
+             return BAD_JSON, None
+         ts = _parse_ts(msg.get("timestamp"))
+-        if ts is None or now - ts > self.max_age:
++        if ts is None:
++            return NO_TIMESTAMP, msg   # absent is not late
++        if now - ts > self.max_age:
+             return STALE, msg
+         if ts - now > self.max_future:
+             return FUTURE, msg
+@@ -297,21 +313,51 @@
+             self.seen = {i: t for i, t in self.seen.items() if t > cut}
+         return VERIFIED, msg
+ 
++class LogLimiter:
++    """per (addr, status) at most `burst` lines per `window` s; the rest are counted and
++    flushed as one summary line, so a flood costs bytes once per window, not once per packet."""
++    def __init__(self, burst=10, window=60.0):
++        self.burst, self.window, self.win = burst, window, {}
++
++    def admit(self, addr, status, now):
++        """returns (write_this_line, summary_or_None)"""
++        k = (addr, status)
++        start, n, dropped = self.win.get(k, (now, 0, 0))
++        summary = None
++        if now - start >= self.window:
++            if dropped:
++                summary = {"addr": addr, "status": status, "suppressed": dropped,
++                           "window_s": round(now - start, 1)}
++            start, n, dropped = now, 0, 0
++        n += 1
++        if n > self.burst:
++            dropped += 1
++            self.win[k] = (start, n, dropped)
++            return False, summary
++        self.win[k] = (start, n, dropped)
++        return True, summary
++
+ def listen(port, keys, max_age, logpath):
+-    v = Verifier(keys, max_age)
++    v, lim = Verifier(keys, max_age), LogLimiter()
+     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+     s.bind(("", port))
+     print("listening udp/%d  keys=%s" % (port, ",".join(v.keys) or "none"))
+     while True:
+         wire, addr = s.recvfrom(2048)
+-        st, msg = v.check(wire)
++        now = time.time()
++        st, msg = v.check(wire, now)
+         frm = msg.get("from") if isinstance(msg, dict) else None
++        write, summary = (True, None) if st == VERIFIED else lim.admit(addr[0], st, now)
+         with open(logpath, "a") as f:
+-            f.write(json.dumps({"t": round(time.time(), 1), "addr": addr[0], "status": st,
+-                                "from": frm, "bytes": len(wire),
+-                                "msg": msg if st == VERIFIED else None}) + "\n")
+-        print("%-11s %-15s %-10s %dB" % (st, addr[0], frm, len(wire)))
++            if summary:
++                f.write(json.dumps({"t": round(now, 1), "summary": summary}) + "\n")
++            if write:
++                f.write(json.dumps({"t": round(now, 1), "addr": addr[0], "status": st,
++                                    "from": frm, "bytes": len(wire),
++                                    "msg": msg if st == VERIFIED else None}) + "\n")
++        if write:
++            print("%-12s %-15s %-10s %dB" % (st, addr[0], frm, len(wire)))
+ 
+ class SimProbes:
+     def __init__(self, dt):
+@@ -322,7 +368,8 @@
+         jit = lambda a: a * math.sin(k * 1.7)
+         r = [Reading("batt_pct", 90 - k * 0.2, READ, t),
+              Reading("batt_temp", 31 + jit(0.2), READ, t),
+-             Reading("pressure", 1013 + jit(0.05) - (0.4 * (k - 30) if k > 30 else 0), READ, t),
++             # 3 hPa/h is a severe real front. below SHIFT's reach by design; p_tend_3h carries it.
++             Reading("pressure", 1013 + jit(0.05) - (3.0 / 3600 * self.dt * (k - 30) if k > 30 else 0), READ, t),
+              Reading("wifi_ap_n", 14 + round(jit(1)) if k < 40 else 1, READ, t),
+              Reading("cell_n", 4 if k < 50 else 0, READ, t),
+              Reading("cell_dbm", -95 + jit(2) if k < 50 else None, READ if k < 50 else UNAVAILABLE, t),
+@@ -335,22 +382,24 @@
+     k = 0
+     while cycles <= 0 or k < cycles:
+         t = t0 + k * interval if simulate else time.time()
++        cycle_start = time.time()
+         readings = sim(t) if simulate else [r for p in LIVE_PROBES for r in p(t)]
+         loc = None if simulate else probe_location(t)
+         rows = mon.ingest(readings)
+         msg, _ = build_announce(node, rows, loc, now=time.gmtime(t),
+-                                reserve=TRAILER_LEN if key else 0)
++                                reserve=TRAILER_ADD if key else 0)
+         wire = sign(msg, key) if key else json.dumps(msg, separators=(",", ":")).encode()
+         n = len(wire)
+         tx = send(wire, port) if do_send else "NOT_SENT"
+         with open(logpath, "a") as f:
+             f.write(json.dumps({"t": round(t, 1), "rows": rows, "bytes": n, "tx": tx,
+-                                "signed": bool(key)}) + "\n")
++                                "signed": bool(key), "probe_s": round(time.time() - cycle_start, 1)}) + "\n")
+         flags = {c: r["flag"] for c, r in rows.items() if r.get("flag") not in (None, "ok", "WARMUP")}
+         print("%04d %4dB %-9s %s" % (k, n, tx[:9], flags if flags else "-"))
+         k += 1
+         if not simulate:
+-            time.sleep(interval)
++            # probe timeouts can sum past the interval (~111 s worst case); hold the period where possible
++            time.sleep(max(0.0, interval - (time.time() - cycle_start)))
+ 
+ def selftest():
+     res = []
+@@ -413,6 +462,53 @@
+     w = sign(msg, key)
+     case("T19 worst case signed packet <= 512 B", len(w) <= MAX_BYTES)
+     case("T20 worst case still verifies", Verifier([key]).check(w, time.time())[0] == VERIFIED)
++    # --- repairs, each pinned
++    old = os.environ.get("TZ")
++    try:
++        os.environ["TZ"] = "America/Chicago"; time.tzset()
++        case("T21 UTC stamp parses to the same instant in a DST zone",
++             _parse_ts("2026-07-01T12:00:00Z") == 1782907200)   # date -u -d 2026-07-01T12:00:00Z +%s
++        case("T22 fresh packet verifies in a DST zone", Verifier([key]).check(wire, now)[0] == VERIFIED)
++    finally:
++        if old is None:
++            os.environ.pop("TZ", None)
++        else:
++            os.environ["TZ"] = old
++        time.tzset()
++    m2 = dict(msg); del m2["timestamp"]
++    case("T23 missing stamp -> NO_TIMESTAMP, not STALE",
++         Verifier([key]).check(sign(m2, key), now)[0] == NO_TIMESTAMP)
++    case("T24 damaged trailer -> BAD_TRAILER, not BAD_JSON",
++         Verifier([key]).check(wire[:-6] + b'AAAAA}', now)[0] == BAD_TRAILER)
++    case("T25 junk still BAD_JSON", Verifier([key]).check(b"\xff\x00junk", now)[0] == BAD_JSON)
++    lim = LogLimiter(burst=10, window=60)
++    writes = sum(1 for i in range(100) if lim.admit("10.0.0.9", BAD_MAC, 1000.0 + i * 0.1)[0])
++    w2, summ = lim.admit("10.0.0.9", BAD_MAC, 1100.0)
++    case("T26 100 BAD_MAC in one window -> 10 lines, summary counts 90",
++         writes == 10 and w2 and bool(summ) and summ["suppressed"] == 90)
++    case("T27 another source not throttled by the first", lim.admit("10.0.0.8", BAD_MAC, 1000.5)[0])
++    mm = Monitor()
++    for i in range(13):
++        mm.ingest([Reading("pressure", 1013 - i * 0.25, READ, i * 900)])
++    r = mm.ingest([Reading("pressure", 1013 - 13 * 0.25, READ, 13 * 900)])
++    case("T28 -1 hPa/h front flags FALLING_FAST on p_tend_3h", r["p_tend_3h"].get("flag") == "FALLING_FAST")
++    mm = Monitor()
++    mm.ingest([Reading("batt_pct", 80, READ, 0)])
++    fl = [mm.ingest([Reading("batt_pct", None, READ, 60 * i)])["batt_pct"]["flag"] for i in (1, 2, 3)]
++    case("T29 READ with no value: DROPOUT once, then quiet", fl == ["DROPOUT", None, None])
++    rows = {c: {"v": 1234.56, "st": READ, "flag": "ok"} for c in CHANNELS}
++    rows.update({c: {"v": -12.34, "st": READ} for c in DERIVED})
++    rows["light"] = {"v": None, "st": DENIED}
++    msg2, _ = build_announce("NODE-LONG-IDENTIFIER-01", rows, (44.123, -90.456))
++    case("T30 under byte pressure a flagless level drops before the absence record",
++         msg2["data"]["x_trunc"] > 0 and "light" in msg2["data"]["x_unread"])
++    rows = {c: {"v": -123.45, "st": READ, "flag": "SHIFT"} for c in CHANNELS}
++    rows.update({c: {"v": -1.23, "st": READ} for c in DERIVED})
++    msg3, body = build_announce("NODE-LONG-IDENTIFIER-01", rows, (44.123, -90.456), reserve=TRAILER_ADD)
++    w3 = sign(msg3, key)
++    case("T31 reserve = bytes the trailer adds; wire <= 512 and body + add == wire",
++         len(w3) <= MAX_BYTES and body + TRAILER_ADD == len(w3))
++
+     bad = sum(1 for _, ok in res if not ok)
+     print("%d/%d pass" % (len(res) - bad, len(res)))
+     return bad == 0
